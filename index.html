@@ -1578,6 +1578,7 @@ let categories = JSON.parse(localStorage.getItem('hotelCategories')) || [
     { id: 4, type: 'expense', name: 'Əmək haqqı' },
     { id: 5, type: 'expense', name: 'Kommunal xidmətlər' },
     { id: 6, type: 'expense', name: 'Təmir' }
+    
 ];
 
 // Rezervasiya gəlirləri (nümunə məlumat)
@@ -2547,6 +2548,7 @@ function saveCategories() {
 function saveTransactions() {
     localStorage.setItem('hotelTransactions', JSON.stringify(transactions, (k, v) => {
   return typeof v === 'number' ? v.toString() : v;
+  localStorage.setItem('hotelTransactions', JSON.stringify(transactions));
 }));
 }
 
@@ -2747,11 +2749,14 @@ function renderTransactionsTable() {
     transactions.forEach(trans => {
         const row = document.createElement('tr');
         
+        // Ədədə çevirmə əlavə edin
+        const amount = parseFloat(trans.amount) || 0;
+        
         row.innerHTML = `
             <td>${formatDate(trans.date)}</td>
             <td>${trans.type === 'income' ? 'Gəlir' : 'Xərc'}</td>
             <td>${trans.category}</td>
-            <td>${trans.amount.toFixed(2)} ₼</td>
+            <td>${amount.toFixed(2)} ₼</td>
             <td>${getPaymentMethodName(trans.paymentMethod)}</td>
             <td>${trans.description || '-'}</td>
             <td>
@@ -2762,7 +2767,6 @@ function renderTransactionsTable() {
         tbody.appendChild(row);
     });
 }
-
 function renderCategoriesList() {
     const container = document.getElementById('categories-list');
     container.innerHTML = '';
