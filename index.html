@@ -2438,14 +2438,23 @@ function getRoomTypeName(type) {
 }
 
 function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('az-AZ', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    if (!dateString) return ''; // Əgər tarix yoxdursa, boş string qaytar
+    
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString; // Əgər tarix etibarlı deyilsə, orijinal stringi qaytar
+        
+        return date.toLocaleDateString('az-AZ', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        console.error('Tarix formatlama xətası:', e);
+        return dateString; // Xəta halında orijinal stringi qaytar
+    }
 }
 
 function getPaymentMethodName(method) {
@@ -2655,11 +2664,12 @@ function renderRecentTransactions() {
     
     const recentTransactions = [...transactions]
         .filter(trans => {
+            if (!trans.date) return false; // Əgər tarix yoxdursa, filtirlə
             const transDate = trans.date.split('T')[0];
             return transDate >= startDate && transDate <= endDate;
         })
         .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 10); // Daha çox göstərmək üçün 10 etdim
+        .slice(0, 10);
     
     if (recentTransactions.length === 0) {
         container.innerHTML = '<p>Hələ heç bir əməliyyat yoxdur</p>';
@@ -2686,16 +2696,19 @@ function renderRecentTransactions() {
             const transEl = document.createElement('div');
             transEl.className = 'transaction';
             
+            // Ədədə çevirmə əlavə edin
+            const amount = parseFloat(trans.amount) || 0;
+            
             transEl.innerHTML = `
                 <div>
                     <span class="transaction-type transaction-expense">
                         Xərc (Əmək haqqı)
                     </span>
-                    <span>${trans.description}</span>
+                    <span>${trans.description || ''}</span>
                     <div>${formatDate(trans.date)}</div>
                 </div>
                 <div>
-                    <strong>${parseFloat(trans.amount).toFixed(2)} ₼</strong>
+                    <strong>${amount.toFixed(2)} ₼</strong>
                     <div>${getPaymentMethodName(trans.paymentMethod)}</div>
                 </div>
             `;
@@ -2715,16 +2728,19 @@ function renderRecentTransactions() {
             const transEl = document.createElement('div');
             transEl.className = 'transaction';
             
+            // Ədədə çevirmə əlavə edin
+            const amount = parseFloat(trans.amount) || 0;
+            
             transEl.innerHTML = `
                 <div>
                     <span class="transaction-type ${trans.type === 'income' ? 'transaction-income' : 'transaction-expense'}">
                         ${trans.type === 'income' ? 'Gəlir' : 'Xərc'}
                     </span>
-                    <span>${trans.category}</span>
+                    <span>${trans.category || ''}</span>
                     <div>${formatDate(trans.date)}</div>
                 </div>
                 <div>
-                    <strong>${trans.amount.toFixed(2)} ₼</strong>
+                    <strong>${amount.toFixed(2)} ₼</strong>
                     <div>${getPaymentMethodName(trans.paymentMethod)}</div>
                 </div>
             `;
@@ -2740,6 +2756,7 @@ function renderRecentTransactions() {
     showReservationButton.addEventListener('click', showReservationIncomes);
     container.appendChild(showReservationButton);
 }
+
 function renderTransactionsTable() {
     const tbody = document.getElementById('transactions-table').querySelector('tbody');
     tbody.innerHTML = '';
