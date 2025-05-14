@@ -2601,21 +2601,21 @@ function updateDashboard() {
         return incomeDate >= startDate && incomeDate <= endDate;
     });
     
-    // Ümumi gəlir
+    // Ümumi gəlir - default 0 təyin edirik
     const totalIncome = filteredTransactions
         .filter(trans => trans.type === 'income')
-        .reduce((sum, trans) => sum + trans.amount, 0);
+        .reduce((sum, trans) => sum + (parseFloat(trans.amount) || 0), 0);
     
     // Rezervasiya gəlirlərini əlavə et
     const totalReservationIncome = filteredReservations
-        .reduce((sum, income) => sum + income.amount, 0);
+        .reduce((sum, income) => sum + (parseFloat(income.amount) || 0), 0);
     
     document.getElementById('total-income').textContent = (totalIncome + totalReservationIncome).toFixed(2) + ' ₼';
     
-    // Ümumi xərc
+    // Ümumi xərc - default 0 təyin edirik
     const totalExpense = filteredTransactions
         .filter(trans => trans.type === 'expense')
-        .reduce((sum, trans) => sum + trans.amount, 0);
+        .reduce((sum, trans) => sum + (parseFloat(trans.amount) || 0), 0);
     
     document.getElementById('total-expense').textContent = totalExpense.toFixed(2) + ' ₼';
     
@@ -2636,7 +2636,6 @@ function updateDashboard() {
     // Son əməliyyatlar
     renderRecentTransactions();
 }
-
 function formatDateRange(startDate, endDate) {
     if (startDate.toDateString() === endDate.toDateString()) {
         return startDate.toLocaleDateString('az-AZ');
