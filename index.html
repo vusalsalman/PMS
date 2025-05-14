@@ -2498,6 +2498,7 @@ function addTransaction() {
         type,
         category,
         amount,
+        amount: parseFloat(amount) || 0,
         description,
         date,
         paymentMethod
@@ -2693,7 +2694,7 @@ function renderRecentTransactions() {
                     <div>${formatDate(trans.date)}</div>
                 </div>
                 <div>
-                    <strong>${trans.amount.toFixed(2)} ₼</strong>
+                    <strong>${parseFloat(trans.amount).toFixed(2)} ₼</strong>
                     <div>${getPaymentMethodName(trans.paymentMethod)}</div>
                 </div>
             `;
