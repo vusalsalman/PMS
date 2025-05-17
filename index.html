@@ -389,7 +389,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0,) !important;
             z-index: 1000;
             justify-content: center;
             align-items: center;
@@ -875,7 +875,7 @@
 <body>
     <div id="alert-container"></div>
     <!-- Login Modal -->
-<div class="modal" id="loginModal" style="display: flex;">
+<div class="modal" id="loginModal" style="display: flex; background-color: black;">
     <div class="modal-content" style="max-width: 400px;">
         <div class="modal-header">
             <h3>Hotel Maliyyə Paneli - Giriş</h3>
@@ -885,7 +885,7 @@
                 <label for="login-role">Rol</label>
                 <select id="login-role" class="form-control" required>
                     <option value="">Seçin</option>
-                    <option value="admin">Admin</option>
+                    
                     <option value="manager">Menecer</option>
                     <option value="reception">Resepşn</option>
                 </select>
@@ -2990,10 +2990,16 @@ function exportToExcel() {
 function createReservationElement(reservation, status, day) {
     const reservationEl = document.createElement('div');
     reservationEl.className = `reservation status-${status} ${reservation.isBooking ? 'booking' : ''}`;
+    reservationEl.draggable = true;
+    reservationEl.dataset.reservationId = reservation.id;
+    
     
     const daysLeft = calculateNights(day.toISOString().split('T')[0], reservation.checkOutDate);
     const progress = ((calculateNights(reservation.checkInDate, day.toISOString().split('T')[0])) / 
                  calculateNights(reservation.checkInDate, reservation.checkOutDate)) * 100;
+
+    const paidAmount = reservation.paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
+    const balance = reservation.totalAmount - paidAmount;
     
     reservationEl.innerHTML = `
         <div class="reservation-info">
@@ -3008,12 +3014,95 @@ function createReservationElement(reservation, status, day) {
             <p><strong>Giriş:</strong> ${formatDate(reservation.checkInDate)}</p>
             <p><strong>Çıxış:</strong> ${formatDate(reservation.checkOutDate)}</p>
             <p><strong>Qalıq gün:</strong> ${daysLeft}</p>
+            <p><strong>Ümumi məbləğ:</strong> ${reservation.totalAmount.toFixed(2)} ₼</p>
+            <p><strong>Qalıq:</strong> ${balance.toFixed(2)} ₼</p>
             <p><strong>Status:</strong> ${getStatusText(status)}</p>
         </div>
     `;
+    reservationEl.addEventListener('dragstart', handleDragStart);
+    
     
     return reservationEl;
 }
+
+let draggedReservation = null;
+
+function handleDragStart(e) {
+    draggedReservation = this;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+    this.classList.add('dragging');
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    this.classList.add('over');
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) e.stopPropagation();
+    
+    if (draggedReservation) {
+        const targetCell = this.closest('.room-cell');
+        if (targetCell) {
+            const roomNumber = targetCell.dataset.room;
+            const date = targetCell.dataset.date;
+            
+            // Rezervasiyanı yenilə
+            const reservationId = draggedReservation.dataset.reservationId;
+            const reservation = reservations.find(r => r.id === reservationId);
+            
+            if (reservation) {
+                // Otaq nömrəsini dəyiş
+                if (roomNumber !== reservation.roomNumber) {
+                    reservation.roomNumber = roomNumber;
+                    reservation.roomType = getRoomType(roomNumber);
+                }
+                
+                // Tarixləri yenilə
+                const oldCheckInDate = reservation.checkInDate;
+                const nights = calculateNights(reservation.checkInDate, reservation.checkOutDate);
+                reservation.checkInDate = date;
+                reservation.checkOutDate = new Date(new Date(date).getTime() + nights * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                
+                saveReservations();
+                renderTimeline();
+                
+                showAlert('success', 'Rezervasiya uğurla yeniləndi');
+            }
+        }
+    }
+    
+    return false;
+}
+
+function handleDragEnd(e) {
+    if (draggedReservation) {
+        draggedReservation.classList.remove('dragging');
+        draggedReservation = null;
+    }
+}
+
+// Timeline-dəki hüceyrələrə drop event-lərini əlavə edirik
+function addDropEventsToCells() {
+    document.querySelectorAll('.room-cell').forEach(cell => {
+        cell.addEventListener('dragover', handleDragOver);
+        cell.addEventListener('drop', handleDrop);
+        cell.addEventListener('dragenter', handleDragEnter);
+        cell.addEventListener('dragleave', handleDragLeave);
+    });
+}
+
+// renderTimeline funksiyasının sonunda addDropEventsToCells() çağırırıq
 
 function updatePaidAmount() {
     let totalPaid = 0;
@@ -3181,9 +3270,10 @@ function renderTimeline() {
                     });
                 } else {
                     // For subsequent days, just mark the cell as reserved
-                    dayCell.style.backgroundColor = 'rgba(69, 255, 188, 0.1)';
-                    dayCell.style.borderLeft = '1px dashed var(--c-green-500)';
-                    dayCell.style.borderRight = '1px dashed var(--c-green-500)';
+                    // Sonrakı günlər üçün eyni rəngdə davam et
+        dayCell.style.backgroundColor = getStatusColor(status) + '99'; // 20% opacity
+        dayCell.style.borderLeft = `1px dashed ${getStatusColor(status)}`;
+        dayCell.style.borderRight = `1px dashed ${getStatusColor(status)}`
                 }
             } else {
                 dayCell.addEventListener('click', (e) => {
@@ -3195,6 +3285,8 @@ function renderTimeline() {
             timelineGrid.appendChild(dayCell);
         }
     });
+    // Add drop events to all cells
+    addDropEventsToCells();
 }
 function openReservationModal(reservationOrRoom, date) {
     const modal = document.getElementById('reservationModal');
@@ -4471,8 +4563,8 @@ function initPersonalManagementEvents() {
 
 // User roles and permissions
 const userRoles = {
-    admin: { password: null, tabs: ['dashboard', 'transactions', 'categories', 'reservations', 'personal'] },
-    manager: { password: '1234', tabs: ['dashboard', 'transactions', 'categories', 'reservations', 'personal'] },
+   
+    manager: { password: 'v1611', tabs: ['dashboard', 'transactions', 'categories', 'reservations', 'personal'] },
     reception: { password: null, tabs: ['reservations'] }
 };
 
