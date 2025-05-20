@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MinAli Boutique Hotel PMS System</title>
+    <title>Hotel Maliyyə Paneli</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -869,6 +869,26 @@
 
 .workday-amount {
     font-weight: bold;
+}
+
+/* Bugünün başlığı için stil */
+.timeline-cell.header.today-header {
+    background-color: #4361ee !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+/* Bugünün hücreleri için stil */
+.timeline-cell.room-cell[data-date="bugünün-tarihi"] {
+    background-color: rgba(67, 97, 238, 0.1) !important;
+    border-left: 2px solid #4361ee !important;
+    border-right: 2px solid #4361ee !important;
+}
+/* Bugünün hücreleri için stil */
+.timeline-cell.room-cell.today-cell {
+    background-color: rgba(67, 97, 238, 0.1) !important;
+    border-left: 2px solid #4361ee !important;
+    border-right: 2px solid #4361ee !important;
 }
     </style>
 </head>
@@ -3163,11 +3183,22 @@ function calculateNightsAndTotal() {
     const checkInDate = document.getElementById('checkin-date').value;
     const checkOutDate = document.getElementById('checkout-date').value;
     const nightlyRate = parseFloat(document.getElementById('nightly-rate').value) || 0;
+    const nightsInput = document.getElementById('nights-count');
     
     if (checkInDate && checkOutDate) {
-        const nights = calculateNights(checkInDate, checkOutDate);
-        document.getElementById('nights-count').value = nights;
-        const totalAmount = calculateTotalAmount(nights, nightlyRate);
+        // Əgər gecə sayı inputuna fokusdursa, onda check-out tarixini yenilə
+        if (document.activeElement === nightsInput) {
+            const nights = parseInt(nightsInput.value) || 1;
+            const newCheckOutDate = new Date(checkInDate);
+            newCheckOutDate.setDate(newCheckOutDate.getDate() + nights);
+            document.getElementById('checkout-date').value = newCheckOutDate.toISOString().split('T')[0];
+        } else {
+            // Əks halda, normal hesablama apar
+            const nights = calculateNights(checkInDate, checkOutDate);
+            nightsInput.value = nights;
+        }
+        
+        const totalAmount = calculateTotalAmount(nightsInput.value, nightlyRate);
         document.getElementById('total-amount').value = totalAmount;
         document.getElementById('detail-total-amount').textContent = totalAmount.toFixed(2);
         
@@ -3195,20 +3226,30 @@ function renderTimeline() {
     roomHeader.textContent = 'Otaq No';
     timelineGrid.appendChild(roomHeader);
     
-    // Create day headers
-    for (let i = 0; i < 7; i++) {
-        const day = new Date(currentWeekStart);
-        day.setDate(currentWeekStart.getDate() + i);
-        
-        const dayHeader = document.createElement('div');
-        dayHeader.className = 'timeline-cell header';
-        const dayName = daysOfWeek[day.getDay()];
-        const dateNum = day.getDate();
-        const isoDate = day.toISOString().split('T')[0];
-        dayHeader.dataset.date = isoDate;
-        dayHeader.textContent = `${dayName} ${dateNum}`;
-        timelineGrid.appendChild(dayHeader);
+
+    // renderTimeline fonksiyonu içinde, gün başlıklarını oluşturduğunuz kısma şunu ekleyin:
+for (let i = 0; i < 7; i++) {
+    const day = new Date(currentWeekStart);
+    day.setDate(currentWeekStart.getDate() + i);
+    
+    const dayHeader = document.createElement('div');
+    dayHeader.className = 'timeline-cell header';
+    const dayName = daysOfWeek[day.getDay()];
+    const dateNum = day.getDate();
+    const isoDate = day.toISOString().split('T')[0];
+    dayHeader.dataset.date = isoDate;
+    dayHeader.textContent = `${dayName} ${dateNum}`;
+    
+    // Bugünün tarihini kontrol et
+    const today = new Date();
+    if (day.getDate() === today.getDate() && 
+        day.getMonth() === today.getMonth() && 
+        day.getFullYear() === today.getFullYear()) {
+        dayHeader.classList.add('today-header');
     }
+    
+    timelineGrid.appendChild(dayHeader);
+}
     // Filter values
 const roomTypeFilter = document.getElementById('roomTypeFilter').value;
 const statusFilter = document.getElementById('statusFilter').value;
@@ -3240,7 +3281,11 @@ rooms.forEach(room => {
             dayStr >= r.checkInDate && 
             dayStr < r.checkOutDate
         );
-        
+        const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    if (dayStr === todayStr) {
+        dayCell.classList.add('today-cell');
+    }
         if (reservation) {
             const status = determineReservationStatus(reservation);
             if (statusFilter && status.toString() !== statusFilter) {
@@ -3872,7 +3917,7 @@ function initReservationEvents() {
             paidAmount: 0,
             paymentMethods: []
         }));
-        
+        document.getElementById('nights-count').addEventListener('input', calculateNightsAndTotal);
         generateGroupInvoice(groupReservations);
     });
 
