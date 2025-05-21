@@ -872,6 +872,7 @@
 }
 
 /* Bugünün başlığı için stil */
+/* Bugünün başlığı için stil */
 .timeline-cell.header.today-header {
     background-color: #4361ee !important;
     color: white !important;
@@ -879,17 +880,13 @@
 }
 
 /* Bugünün hücreleri için stil */
-.timeline-cell.room-cell[data-date="bugünün-tarihi"] {
-    background-color: rgba(67, 97, 238, 0.1) !important;
-    border-left: 2px solid #4361ee !important;
-    border-right: 2px solid #4361ee !important;
-}
-/* Bugünün hücreleri için stil */
 .timeline-cell.room-cell.today-cell {
     background-color: rgba(67, 97, 238, 0.1) !important;
     border-left: 2px solid #4361ee !important;
     border-right: 2px solid #4361ee !important;
 }
+
+
     </style>
 </head>
 <body>
@@ -3226,125 +3223,105 @@ function renderTimeline() {
     roomHeader.textContent = 'Otaq No';
     timelineGrid.appendChild(roomHeader);
     
-
-    // renderTimeline fonksiyonu içinde, gün başlıklarını oluşturduğunuz kısma şunu ekleyin:
-for (let i = 0; i < 7; i++) {
-    const day = new Date(currentWeekStart);
-    day.setDate(currentWeekStart.getDate() + i);
-    
-    const dayHeader = document.createElement('div');
-    dayHeader.className = 'timeline-cell header';
-    const dayName = daysOfWeek[day.getDay()];
-    const dateNum = day.getDate();
-    const isoDate = day.toISOString().split('T')[0];
-    dayHeader.dataset.date = isoDate;
-    dayHeader.textContent = `${dayName} ${dateNum}`;
-    
-    // Bugünün tarihini kontrol et
+    // Bugünün tarihini al
     const today = new Date();
-    if (day.getDate() === today.getDate() && 
-        day.getMonth() === today.getMonth() && 
-        day.getFullYear() === today.getFullYear()) {
-        dayHeader.classList.add('today-header');
-    }
+    const todayStr = today.toISOString().split('T')[0];
     
-    timelineGrid.appendChild(dayHeader);
-}
-    // Filter values
-const roomTypeFilter = document.getElementById('roomTypeFilter').value;
-const statusFilter = document.getElementById('statusFilter').value;
-
-// Add rooms and reservations
-rooms.forEach(room => {
-    if (roomTypeFilter && getRoomType(room.number) !== roomTypeFilter) return;
-    
-    // Room number cell
-    const roomCell = document.createElement('div');
-    roomCell.className = 'timeline-cell header';
-    roomCell.textContent = room.number;
-    timelineGrid.appendChild(roomCell);
-    
-    // Day cells for this room
+    // Gün başlıklarını oluştur
     for (let i = 0; i < 7; i++) {
         const day = new Date(currentWeekStart);
         day.setDate(currentWeekStart.getDate() + i);
-        const dayStr = day.toISOString().split('T')[0];
         
-        const dayCell = document.createElement('div');
-        dayCell.className = 'timeline-cell room-cell';
-        dayCell.dataset.room = room.number;
-        dayCell.dataset.date = dayStr;
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'timeline-cell header';
+        const dayName = daysOfWeek[day.getDay()];
+        const dateNum = day.getDate();
+        const isoDate = day.toISOString().split('T')[0];
+        dayHeader.dataset.date = isoDate;
+        dayHeader.textContent = `${dayName} ${dateNum}`;
         
-        // Check if this day is part of any reservation
-        const reservation = reservations.find(r => 
-            r.roomNumber === room.number && 
-            dayStr >= r.checkInDate && 
-            dayStr < r.checkOutDate
-        );
-        const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    if (dayStr === todayStr) {
-        dayCell.classList.add('today-cell');
-    }
-        if (reservation) {
-            const status = determineReservationStatus(reservation);
-            if (statusFilter && status.toString() !== statusFilter) {
-                timelineGrid.appendChild(dayCell);
-                continue;
-            }
-            
-            // Create reservation element for all days of the reservation
-            const reservationEl = createReservationElement(reservation, status, day);
-            dayCell.appendChild(reservationEl);
-            
-            // Calculate how many days this reservation spans in the current week
-            const startDate = new Date(reservation.checkInDate);
-            const endDate = new Date(Math.min(new Date(reservation.checkOutDate), new Date(timelineEnd)));
-            const dayCount = calculateNights(startDate, endDate);
-            
-            // Set grid column span to cover all days of the reservation in current week
-            if (dayCount > 1) {
-                reservationEl.style.gridColumn = `span ${dayCount}`;
-            }
-            
-            reservationEl.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openReservationModal(reservation);
-            });
-            
-            // Apply status styling to all days
-            if (reservation.checkedOut) {
-                const paidAmount = reservation.paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
-                const balance = reservation.totalAmount - paidAmount;
-                
-                let cellStatus;
-                if (paidAmount > reservation.totalAmount) {
-                    cellStatus = 12; // Artıq ödəniş
-                } else if (paidAmount === reservation.totalAmount) {
-                    cellStatus = 9;  // Tam ödəniş
-                } else if (paidAmount > 0) {
-                    cellStatus = 11; // Qismi ödəniş
-                } else {
-                    cellStatus = 10; // Ödəniş olunmayıb
-                }
-                
-                dayCell.style.backgroundColor = getStatusColor(cellStatus) + '99';
-                dayCell.style.borderLeft = `1px dashed ${getStatusColor(cellStatus)}`;
-                dayCell.style.borderRight = `1px dashed ${getStatusColor(cellStatus)}`;
-            }
-        } else {
-            dayCell.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openReservationModal(room.number, dayStr);
-            });
+        // Bugünün başlığını işaretle
+        if (isoDate === todayStr) {
+            dayHeader.classList.add('today-header');
         }
         
-        timelineGrid.appendChild(dayCell);
+        timelineGrid.appendChild(dayHeader);
     }
-});
-// Add drop events to all cells
-addDropEventsToCells();
+    
+    // Filter values
+    const roomTypeFilter = document.getElementById('roomTypeFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    // Add rooms and reservations
+    rooms.forEach(room => {
+        if (roomTypeFilter && getRoomType(room.number) !== roomTypeFilter) return;
+        
+        // Room number cell
+        const roomCell = document.createElement('div');
+        roomCell.className = 'timeline-cell header';
+        roomCell.textContent = room.number;
+        timelineGrid.appendChild(roomCell);
+        
+        // Day cells for this room
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(currentWeekStart);
+            day.setDate(currentWeekStart.getDate() + i);
+            const dayStr = day.toISOString().split('T')[0];
+            
+            const dayCell = document.createElement('div');
+            dayCell.className = 'timeline-cell room-cell';
+            dayCell.dataset.room = room.number;
+            dayCell.dataset.date = dayStr;
+            
+            // Bugünün hücresini işaretle
+            if (dayStr === todayStr) {
+                dayCell.classList.add('today-cell');
+            }
+            
+            // Check if this day is part of any reservation
+            const reservation = reservations.find(r => 
+                r.roomNumber === room.number && 
+                dayStr >= r.checkInDate && 
+                dayStr < r.checkOutDate
+            );
+            
+            if (reservation) {
+                const status = determineReservationStatus(reservation);
+                if (statusFilter && status.toString() !== statusFilter) {
+                    timelineGrid.appendChild(dayCell);
+                    continue;
+                }
+                
+                const reservationEl = createReservationElement(reservation, status, day);
+                dayCell.appendChild(reservationEl);
+                
+                const startDate = new Date(reservation.checkInDate);
+                const endDate = new Date(Math.min(new Date(reservation.checkOutDate), new Date(timelineEnd)));
+                const dayCount = calculateNights(startDate, endDate);
+                
+                if (dayCount > 1) {
+                    reservationEl.style.gridColumn = `span ${dayCount}`;
+                }
+                
+                reservationEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openReservationModal(reservation);
+                });
+            } else {
+                dayCell.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openReservationModal(room.number, dayStr);
+                });
+            }
+            
+            timelineGrid.appendChild(dayCell);
+        }
+    });
+    
+    // Add drop events to all cells
+    addDropEventsToCells();
 }
+
 function openReservationModal(reservationOrRoom, date) {
     const modal = document.getElementById('reservationModal');
     const form = document.getElementById('reservation-form');
