@@ -872,7 +872,6 @@
 }
 
 /* Bugünün başlığı için stil */
-/* Bugünün başlığı için stil */
 .timeline-cell.header.today-header {
     background-color: #4361ee !important;
     color: white !important;
@@ -880,13 +879,17 @@
 }
 
 /* Bugünün hücreleri için stil */
+.timeline-cell.room-cell[data-date="bugünün-tarihi"] {
+    background-color: rgba(67, 97, 238, 0.1) !important;
+    border-left: 2px solid #4361ee !important;
+    border-right: 2px solid #4361ee !important;
+}
+/* Bugünün hücreleri için stil */
 .timeline-cell.room-cell.today-cell {
     background-color: rgba(67, 97, 238, 0.1) !important;
     border-left: 2px solid #4361ee !important;
     border-right: 2px solid #4361ee !important;
 }
-
-
     </style>
 </head>
 <body>
@@ -2323,7 +2326,7 @@ async function generateGroupInvoice(groupReservations) {
 // Current date variables
 let currentDate = new Date();
 let currentWeekStart = new Date(currentDate);
-currentWeekStart.setDate(currentDate.getDate() - (currentDate.getDay() + 6) % 7); // Həftənin ilk günü (bazar ertəsi)
+currentWeekStart.setDate(currentDate.getDate() - currentDate.getDay());
 let currentMonth = currentDate.getMonth();
 let currentYear = currentDate.getFullYear();
 
@@ -2455,21 +2458,22 @@ function getRoomTypeName(type) {
 }
 
 function formatDate(dateString) {
-    if (!dateString) return '';
+    if (!dateString) return ''; // Əgər tarix yoxdursa, boş string qaytar
     
     try {
         const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString;
+        if (isNaN(date.getTime())) return dateString; // Əgər tarix etibarlı deyilsə, orijinal stringi qaytar
         
-        // Azərbaycan dilində tarix formatı
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        
-        return `${day}.${month}.${year}`;
+        return date.toLocaleDateString('az-AZ', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     } catch (e) {
         console.error('Tarix formatlama xətası:', e);
-        return dateString;
+        return dateString; // Xəta halında orijinal stringi qaytar
     }
 }
 
@@ -3211,8 +3215,9 @@ function renderTimeline() {
     timelineEnd.setDate(currentWeekStart.getDate() + 6);
     
     const monthNames = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "İyun", 
-                        "İyul", "Avqust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr"];
+                       "İyul", "Avqust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr"];
     
+    // Düzgün ay və il göstərilməsi üçün lokal tarix istifadə edin
     document.getElementById('timeline-date-display').textContent = 
         `${monthNames[currentWeekStart.getMonth()]} ${currentWeekStart.getFullYear()}`;
     
@@ -3222,31 +3227,35 @@ function renderTimeline() {
     roomHeader.textContent = 'Otaq No';
     timelineGrid.appendChild(roomHeader);
     
-    // Bugünün tarihini al
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    
-    // Gün başlıklarını oluştur
+    // Gün başlıqlarını yaratmaq
     for (let i = 0; i < 7; i++) {
         const day = new Date(currentWeekStart);
         day.setDate(currentWeekStart.getDate() + i);
         
+        // Yerli tarixi almaq üçün (timezone problemindən qaçınmaq)
+        const localDay = new Date(day.getTime() - (day.getTimezoneOffset() * 60000));
+        const dayName = daysOfWeek[localDay.getDay()];
+        const dateNum = localDay.getDate();
+        const isoDate = localDay.toISOString().split('T')[0];
+        
         const dayHeader = document.createElement('div');
         dayHeader.className = 'timeline-cell header';
-        const dayName = daysOfWeek[day.getDay()];
-        const dateNum = day.getDate();
-        const isoDate = day.toISOString().split('T')[0];
         dayHeader.dataset.date = isoDate;
         dayHeader.textContent = `${dayName} ${dateNum}`;
         
-        // Bugünün başlığını işaretle
-        if (isoDate === todayStr) {
+        // Bugünün tarixini yoxlamaq
+        const today = new Date();
+        const localToday = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
+        if (localDay.getDate() === localToday.getDate() && 
+            localDay.getMonth() === localToday.getMonth() && 
+            localDay.getFullYear() === localToday.getFullYear()) {
             dayHeader.classList.add('today-header');
         }
         
         timelineGrid.appendChild(dayHeader);
     }
     
+    // Qalan kod eyni qalır...
     // Filter values
     const roomTypeFilter = document.getElementById('roomTypeFilter').value;
     const statusFilter = document.getElementById('statusFilter').value;
@@ -3265,18 +3274,24 @@ function renderTimeline() {
         for (let i = 0; i < 7; i++) {
             const day = new Date(currentWeekStart);
             day.setDate(currentWeekStart.getDate() + i);
-            const dayStr = day.toISOString().split('T')[0];
+            
+            // Yerli tarixi almaq
+            const localDay = new Date(day.getTime() - (day.getTimezoneOffset() * 60000));
+            const dayStr = localDay.toISOString().split('T')[0];
             
             const dayCell = document.createElement('div');
             dayCell.className = 'timeline-cell room-cell';
             dayCell.dataset.room = room.number;
             dayCell.dataset.date = dayStr;
             
-            // Bugünün hücresini işaretle
-            if (dayStr === todayStr) {
+            // Bugünün hüceyrəsini işarələmək
+            const today = new Date();
+            const localToday = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
+            if (dayStr === localToday.toISOString().split('T')[0]) {
                 dayCell.classList.add('today-cell');
             }
             
+            // Qalan rezervasiya məntiqi eyni qalır...
             // Check if this day is part of any reservation
             const reservation = reservations.find(r => 
                 r.roomNumber === room.number && 
@@ -3291,13 +3306,16 @@ function renderTimeline() {
                     continue;
                 }
                 
-                const reservationEl = createReservationElement(reservation, status, day);
+                // Create reservation element for all days of the reservation
+                const reservationEl = createReservationElement(reservation, status, localDay);
                 dayCell.appendChild(reservationEl);
                 
+                // Calculate how many days this reservation spans in the current week
                 const startDate = new Date(reservation.checkInDate);
                 const endDate = new Date(Math.min(new Date(reservation.checkOutDate), new Date(timelineEnd)));
                 const dayCount = calculateNights(startDate, endDate);
                 
+                // Set grid column span to cover all days of the reservation in current week
                 if (dayCount > 1) {
                     reservationEl.style.gridColumn = `span ${dayCount}`;
                 }
@@ -3708,23 +3726,21 @@ function exportTimelineToExcel() {
 
 function initReservationEvents() {
     // Timeline navigation
-// Düzgün timeline naviqasiya
-document.getElementById('prev-week-timeline').addEventListener('click', function() {
-    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-    renderTimeline();
-});
-
-document.getElementById('next-week-timeline').addEventListener('click', function() {
-    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-    renderTimeline();
-});
-
-document.getElementById('today-btn-timeline').addClickListener(function() {
-    currentDate = new Date();
-    currentWeekStart = new Date(currentDate);
-    currentWeekStart.setDate(currentDate.getDate() - (currentDate.getDay() + 6) % 7);
-    renderTimeline();
-});
+    document.getElementById('prev-week-timeline').addEventListener('click', function() {
+        currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+        renderTimeline();
+    });
+    
+    document.getElementById('next-week-timeline').addEventListener('click', function() {
+        currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+        renderTimeline();
+    });
+    
+    document.getElementById('today-btn-timeline').addEventListener('click', function() {
+        currentWeekStart = new Date(currentDate);
+        currentWeekStart.setDate(currentDate.getDate() - currentDate.getDay());
+        renderTimeline();
+    });
     
     // Reservation modal
     document.getElementById('add-reservation-btn').addEventListener('click', function() {
@@ -3936,19 +3952,19 @@ function renderPersonalTimeline() {
     
     // Create day headers
     for (let i = 0; i < 7; i++) {
-    const day = new Date(currentWeekStart);
-    day.setDate(currentWeekStart.getDate() + i);
+        const day = new Date(currentWeekStart);
+        day.setDate(currentWeekStart.getDate() + i);
+        
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'timeline-cell header';
+        const dayName = daysOfWeek[day.getDay()];
+        const dateNum = day.getDate();
+        const isoDate = day.toISOString().split('T')[0];
+        dayHeader.dataset.date = isoDate;
+        dayHeader.textContent = `${dayName} ${dateNum}`;
+        timelineGrid.appendChild(dayHeader);
+    }
     
-    const dayHeader = document.createElement('div');
-    dayHeader.className = 'timeline-cell header';
-    const dayName = daysOfWeek[day.getDay()];
-    const dateNum = day.getDate();
-    const isoDate = day.toISOString().split('T')[0];
-    dayHeader.dataset.date = isoDate;
-    dayHeader.textContent = `${dayName} ${dateNum}`;
-    timelineGrid.appendChild(dayHeader);
-}
-
     // Add employees and their work days
     employees.filter(e => e.active).forEach(employee => {
         // Employee name cell
